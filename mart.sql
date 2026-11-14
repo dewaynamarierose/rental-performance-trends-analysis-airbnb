@@ -1,55 +1,55 @@
-/* INTERMEDIATE TABLES */
--- Here I want to join both tables together based on common table listing_id with INNER JOIN because we want everything
+/* MART MODEL */
+/* 
+In this modeling layer, 
+I am double checking if any view rows are repeated during joining process then creating the final 
+mart model 
+*/
 
-CREATE OR REPLACE VIEW `looker-airbnb-project-505911.intermediate.joined_airbnb_tables` 
-AS (
-  SELECT
-  calendar.listing_id
-  ,calendar.date_date
-  ,calendar.is_available
-  ,calendar.price_per_night
-  ,listing.room_type
-  ,listing.host_response_time
-  ,listing.review_scores_value
-FROM `looker-airbnb-project-505911.staging.calendar` AS calendar
-INNER JOIN `looker-airbnb-project-505911.staging.listing` AS listing
-ON calendar.listing_id = listing.listing_id
-ORDER BY date_date
-)
-
--- Make table where only is_available = true
-CREATE OR REPLACE VIEW `looker-airbnb-project-505911.intermediate.joined_airbnb_is_available_true` 
-AS (
-SELECT
-    listing_id
-  ,date_date
-  ,price_per_night
-  ,is_available
-  ,host_response_time
-  ,room_type
-  ,review_scores_value
-FROM `looker-airbnb-project-505911.intermediate.joined_airbnb_tables` 
-GROUP BY 1,2,3,4,5,6,7
-HAVING is_available = true
-ORDER BY 3 DESC
-)
-
-
--- Make table where only is_available = false
-CREATE OR REPLACE VIEW `looker-airbnb-project-505911.intermediate.joined_airbnb_is_available_false` 
-AS (
-SELECT
+SELECT 
   listing_id
   ,date_date
-  ,price_per_night
-  ,is_available
-  ,host_response_time
-  ,room_type
-  ,review_scores_value
+  ,COUNT(*) AS nb_rows
 FROM `looker-airbnb-project-505911.intermediate.joined_airbnb_tables` 
-GROUP BY 1,2,3,4,5,6,7
-HAVING is_available = false
-ORDER BY 3 DESC
+GROUP BY listing_id, date_date
+HAVING nb_rows > 1
+OR listing_id IS NULL
+OR date_date IS NULL 
+;
+
+-- CONCLUSION: I see no repeated rows -- result show no data to display
+
+/*Here I adouble checking if row count is same as original calendar table which was 72101 Rows */ 
+SELECT
+  COUNT(*) AS joined_row_count
+FROM `looker-airbnb-project-505911.intermediate.joined_airbnb_tables` 
+;
+-- CONCLUSION: Yes row count is the same 72101
+
+/* I will now create MART MODEL table from intermediate model */
+
+CREATE OR REPLACE TABLE `looker-airbnb-project-505911.mart.airbnb_project_table` 
+AS (
+  SELECT
+    *
+  FROM `looker-airbnb-project-505911.intermediate.joined_airbnb_tables` 
 )
 
+/* I actually will add two final tables additionally where the
+ is_available column is ONLY true and another where is_available is ONLY FALSE
+ */
 
+/* TRUE TABLE */
+CREATE OR REPLACE TABLE `looker-airbnb-project-505911.mart.airbnb_booking_availibility_true` 
+AS (
+  SELECT
+    *
+  FROM `looker-airbnb-project-505911.intermediate.joined_airbnb_is_available_true` 
+)
+
+/* FALSE TABLE */
+CREATE OR REPLACE TABLE `looker-airbnb-project-505911.mart.airbnb_booking_availibility_false` 
+AS (
+  SELECT
+    *
+  FROM `looker-airbnb-project-505911.intermediate.joined_airbnb_is_available_false` 
+)
