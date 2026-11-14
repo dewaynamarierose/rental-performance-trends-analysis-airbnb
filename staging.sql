@@ -1,4 +1,4 @@
-/* STAGING TABLES */
+/* STAGING MODEL */
 /* In this modeling layer, we will create staging tables to clean and transform the raw data before making any joins in the intermediate layer. */
 
 /* Checking for any null values and removing them */
